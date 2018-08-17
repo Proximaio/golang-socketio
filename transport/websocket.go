@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/mtfelian/golang-socketio/logging"
+	"github.com/alexmironof/golang-socketio/logging"
 )
 
 const (
