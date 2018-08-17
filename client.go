@@ -1,11 +1,13 @@
 package gosocketio
 
 import (
+	"fmt"
 	"strconv"
 
 	_ "time"
 
-	"github.com/mtfelian/golang-socketio/transport"
+	"github.com/alexmironof/golang-socketio/protocol"
+	"github.com/alexmironof/golang-socketio/transport"
 )
 
 const (
@@ -45,7 +47,7 @@ func AddrPolling(host string, port int, secure bool) string {
 // Dial connects to server and initializes socket.io protocol
 // The correct ws protocol addr example:
 // ws://myserver.com/socket.io/?EIO=3&transport=websocket
-func Dial(addr string, tr transport.Transport) (*Client, error) {
+func Dial(addr string, ns string, tr transport.Transport) (*Client, error) {
 	c := &Client{Channel: &Channel{}, event: &event{}}
 	c.Channel.init()
 	c.event.init()
@@ -55,6 +57,9 @@ func Dial(addr string, tr transport.Transport) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	nsMsg := fmt.Sprintf("4%d%s", protocol.MessageTypeOpen, ns)
+	c.conn.WriteMessage(nsMsg)
 
 	go c.Channel.inLoop(c.event)
 	go c.Channel.outLoop(c.event)
@@ -69,4 +74,6 @@ func Dial(addr string, tr transport.Transport) (*Client, error) {
 }
 
 // Close client connection
-func (c *Client) Close() { c.Channel.close(c.event) }
+func (c *Client) Close() {
+	c.Channel.close(c.event)
+}
