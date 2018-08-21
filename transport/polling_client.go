@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mtfelian/golang-socketio/logging"
-	"github.com/mtfelian/golang-socketio/protocol"
+	"github.com/alexmironof/golang-socketio/logging"
+	"github.com/alexmironof/golang-socketio/protocol"
 )
 
 var (
@@ -43,21 +43,20 @@ func (polling *PollingClientConnection) GetMessage() (string, error) {
 		return "", err
 	}
 
-	bodyString := string(bodyBytes)
+	bodyString := string(stripCtlAndExtFromBytes(bodyBytes))
 	logging.Log().Debug("PollingConnection.GetMessage() bodyString:", bodyString)
-	index := strings.Index(bodyString, ":")
 
-	body := bodyString[index+1:]
-	return body, nil
+	return bodyString, nil
 }
 
 // WriteMessage performs a POST request to send a message to server
 func (polling *PollingClientConnection) WriteMessage(m string) error {
-	mWrite := withLength(m)
-	logging.Log().Debug("PollingConnection.WriteMessage() fired, msgToWrite:", mWrite)
-	mJSON := []byte(mWrite)
+	logging.Log().Debug("PollingConnection.WriteMessage() fired, msgToWrite:", m)
 
-	resp, err := polling.client.Post(polling.url, "application/json", bytes.NewBuffer(mJSON))
+	msg := withLength(m)
+	buff := bytes.NewBuffer([]byte(msg))
+
+	resp, err := polling.client.Post(polling.url, "application/json", buff)
 	if err != nil {
 		logging.Log().Debug("PollingConnection.WriteMessage() error polling.client.Post():", err)
 		return err
@@ -70,8 +69,8 @@ func (polling *PollingClientConnection) WriteMessage(m string) error {
 	}
 
 	resp.Body.Close()
-	bodyString := string(bodyBytes)
-	if bodyString != "ok" {
+	bodyString := string(stripCtlAndExtFromBytes(bodyBytes))
+	if bodyString != "OK" {
 		return errResponseIsNotOK
 	}
 
@@ -135,45 +134,35 @@ func (t *PollingClientTransport) Connect(url string) (Connection, error) {
 	}
 
 	resp.Body.Close()
-	bodyString := string(bodyBytes)
+	bodyString := string(stripCtlAndExtFromBytes(bodyBytes))
 	logging.Log().Debug("PollingConnection.Connect() bodyString 1:", bodyString)
 
-	body := bodyString[strings.Index(bodyString, ":")+1:]
-	if string(body[0]) != protocol.MessageOpen {
+	start := strings.Index(bodyString, "{")
+	end := strings.Index(bodyString, "}") + 1
+
+	msg := bodyString[:start]
+	if msg != protocol.MessageOpen {
 		return nil, errAnswerNotOpenSequence
 	}
 
-	bodyBytes2 := []byte(body[1:])
-	var openSequence openSequence
+	body := []byte(bodyString[start:end])
+	var seq openSequence
 
-	if err := json.Unmarshal(bodyBytes2, &openSequence); err != nil {
+	if err := json.Unmarshal(body, &seq); err != nil {
 		logging.Log().Debug("PollingConnection.Connect() error json.Unmarshal() 1:", err)
 		return nil, err
 	}
 
-	polling.url += "&sid=" + openSequence.Sid
-	logging.Log().Debug("PollingConnection.Connect() polling.url 1:", polling.url)
+	res := bodyString[end:]
 
-	resp, err = polling.client.Get(polling.url)
-	if err != nil {
-		logging.Log().Debug("PollingConnection.Connect() error plc.client.Get() 2:", err)
-		return nil, err
-	}
-
-	bodyBytes, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logging.Log().Debug("PollingConnection.Connect() error ioutil.ReadAll() 2:", err)
-		return nil, err
-	}
-
-	resp.Body.Close()
-	bodyString = string(bodyBytes)
-	logging.Log().Debug("PollingConnection.Connect() bodyString 2:", bodyString)
-	body = bodyString[strings.Index(bodyString, ":")+1:]
-
-	if body != protocol.MessageEmpty {
+	if res != protocol.MessageEmpty {
 		return nil, errAnswerNotOpenMessage
 	}
+
+	polling.url += "&sid=" + seq.Sid
+	polling.sid = seq.Sid
+
+	logging.Log().Debug("PollingConnection.Connect() polling.url 1:", polling.url)
 
 	return polling, nil
 }
@@ -186,4 +175,20 @@ func DefaultPollingClientTransport() *PollingClientTransport {
 		ReceiveTimeout: PlDefaultReceiveTimeout,
 		SendTimeout:    PlDefaultSendTimeout,
 	}
+}
+
+func stripCtlAndExtFromBytes(in []byte) []byte {
+	out := make([]byte, len(in))
+
+	var l int
+
+	for i := 0; i < len(in); i++ {
+		c := in[i]
+		if c >= 32 && c < 127 {
+			out[l] = c
+			l++
+		}
+	}
+
+	return out[:l]
 }

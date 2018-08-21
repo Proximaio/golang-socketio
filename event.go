@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/mtfelian/golang-socketio/logging"
-	"github.com/mtfelian/golang-socketio/protocol"
+	"github.com/alexmironof/golang-socketio/logging"
+	"github.com/alexmironof/golang-socketio/protocol"
 )
 
 const (
