@@ -10,8 +10,8 @@ import (
 
 	"fmt"
 
-	"github.com/alexmironof/golang-socketio/logging"
-	"github.com/alexmironof/golang-socketio/protocol"
+	"github.com/Proximaio/golang-socketio/logging"
+	"github.com/Proximaio/golang-socketio/protocol"
 )
 
 const (

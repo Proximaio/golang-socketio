@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alexmironof/golang-socketio/logging"
-	"github.com/alexmironof/golang-socketio/protocol"
-	"github.com/alexmironof/golang-socketio/transport"
+	"github.com/Proximaio/golang-socketio/logging"
+	"github.com/Proximaio/golang-socketio/protocol"
+	"github.com/Proximaio/golang-socketio/transport"
 )
 
 const (
